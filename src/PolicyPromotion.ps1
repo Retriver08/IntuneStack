@@ -90,6 +90,25 @@ param(
     [string]$OutputLevel = 'Normal'
 )
 
+# Mask sensitive information in GitHub Actions logs
+if ($env:GITHUB_ACTIONS) {
+    # Mask authentication credentials
+    if ($env:AZURE_TENANT_ID) {
+        Write-Output "::add-mask::$env:AZURE_TENANT_ID"
+    }
+    if ($env:AZURE_CLIENT_ID) {
+        Write-Output "::add-mask::$env:AZURE_CLIENT_ID"
+    }
+    if ($env:OIDC_TOKEN) {
+        Write-Output "::add-mask::$env:OIDC_TOKEN"
+    }
+
+    # Mask the policy ID being analyzed
+    if ($PolicyId) {
+        Write-Output "::add-mask::$PolicyId"
+    }
+}
+
 $version = "1.0.0"
 
 ###############################################################################################################
@@ -301,6 +320,11 @@ function Get-EntraGroup() {
         if ($GroupName) {
             # For exact match, return single result or null
             if ($result.value -and $result.value.Count -gt 0) {
+                # Mask the group ID in GitHub Actions
+                if ($env:GITHUB_ACTIONS -and $result.value[0].id) {
+                    Write-Output "::add-mask::$($result.value[0].id)"
+                }
+
                 Write-Log "Found group: $GroupName (ID: $($result.value[0].id))" -Level Info
                 return $result.value[0]
             } else {
@@ -308,6 +332,14 @@ function Get-EntraGroup() {
                 return $null
             }
         } else {
+            # Mask all group IDs when returning multiple groups
+            if ($env:GITHUB_ACTIONS -and $result.value) {
+                foreach ($group in $result.value) {
+                    if ($group.id) {
+                        Write-Output "::add-mask::$($group.id)"
+                    }
+                }
+            }
             Write-Log "Found $($result.value.Count) groups" -Level Info
             return $result.value
         }

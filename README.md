@@ -1,6 +1,8 @@
 # IntuneStack 🔥
 
-> **Modern Intune Configuration Management with with progressive deployment rings and automated success gates**
+> **Modern Intune Configuration Management with progressive deployment rings and automated success gates**
+
+⚠️ **IMPORTANT DISCLAIMER**: This project is provided for testing and educational purposes. Use at your own risk. This is a foundational framework that should be thoroughly tested in your own development environment before any production use. Always review and understand the code before running it against your Intune tenant.
 
 IntuneStack is a foundation to provide CI/CD orchestration. IntuneStack focuses purely on deployment orchestration of policy - adding progressive group deployment, automated success criteria evaluation, and OIDC-enabled CI/CD pipeline to operationalize through deployment rings (dev → test → prod).
 
@@ -13,6 +15,35 @@ IntuneStack is a foundation to provide CI/CD orchestration. IntuneStack focuses 
 - **OIDC Authentication**: Secure GitHub Actions integration with Azure App Registration (no stored credentials)
 - **Code Quality Enforcement**: PSScriptAnalyzer integration with pre-commit hooks and quality gates
 - **GitHub Actions**: Fully automated CI/CD pipeline with environment protection and approval gates
+
+## 🔐 Security & Privacy
+
+### Artifact Security
+
+This repository is configured to protect sensitive tenant information:
+
+- ✅ **Code quality results** and **unit test results** are uploaded as artifacts (no sensitive data)
+- ❌ **Integration test results** are NOT uploaded as artifacts (contain real Intune tenant data)
+- 📋 All integration test results are available in GitHub Actions workflow logs
+- 🛡️ Fork pull requests cannot create artifacts
+- ⏱️ Artifacts are retained for 7 days only
+
+**Why this matters**: Integration tests connect to your real Intune tenant and may contain:
+- Tenant IDs and configuration details
+- Policy names and assignments
+- Group names and membership information
+- Device deployment statistics
+
+By not uploading these as artifacts, we ensure this sensitive information remains private even in a public repository.
+
+### Running Your Own Tests
+
+When you fork this repository:
+1. **Set up your own App Registration** with OIDC
+2. **Configure your own GitHub secrets** (AZURE_TENANT_ID, AZURE_CLIENT_ID)
+3. **Run workflows manually** to test against your tenant
+4. **Review workflow logs** for detailed results (no public artifacts created)
+
 
 ## 🏗️ Project Structure
 
@@ -57,11 +88,15 @@ IntuneStack/
 2. **PowerShell 7+** (for local development)
 3. **Microsoft Graph PowerShell SDK** (automatically installed)
 4. **GitHub repository** with appropriate secrets and variables
+5. **Understanding of risk**: Test in a non-production environment first
 
+### 1. Fork This Repository
 
-### 1. Azure App Registration Setup
+Click the "Fork" button at the top of this repository to create your own copy.
 
-Create an Azure App Registration with the following Graph API permissions:
+### 2. App Registration Setup
+
+Create an App Registration with the following Graph API permissions:
 
 ```bash
 # Required Microsoft Graph API permissions:
@@ -72,7 +107,7 @@ Create an Azure App Registration with the following Graph API permissions:
 - Policy.ReadWrite.ConditionalAccess           # If managing CA policies
 ```
 
-### 2. Configure OIDC for GitHub Actions
+### 3. Configure OIDC for GitHub Actions
 
 In your Azure App Registration:
 
@@ -84,7 +119,7 @@ In your Azure App Registration:
    - **Entity type**: Branch
    - **GitHub branch name**: main
 
-### 3. Set GitHub Secrets
+### 4. Set GitHub Secrets
 
 In your GitHub repository settings (Settings → Secrets and variables → Actions):
 
@@ -104,7 +139,7 @@ INTUNESTACK_PROD_GROUP=Your-Prod-Group-Name
 > If variables are not set, IntuneStack uses default group names: `Intune-Dev-Users`, `Intune-Test-Users`, `Intune-Prod-Users`
 
 
-### 4. Create Deployment Ring Groups in Entra ID
+### 5. Create Deployment Ring Groups in Entra ID
 
 Create three Entra ID groups for your deployment rings:
 - **Dev Group**: Initial deployment and testing
@@ -125,9 +160,11 @@ These groups can be any Entra ID groups - no special configuration needed.
    - **Success Threshold**: Minimum success rate % for promotion (default: 80%)
    - **Auto Promote**: Enable to automatically promote if criteria met
    - **Output Level**: `Minimal`, `Normal`, or `Detailed`
+   - **Run tests only**: Check to run Pester tests without connecting to Graph API
+
+⚠️ **Note**: Integration test results will appear in the workflow logs only. No artifacts containing your tenant data will be uploaded.
 
 ### Local Development
-
 ```powershell
 # Analyze a policy for promotion readiness
 .\src\PolicyPromotion.ps1 -PolicyId "" -CurrentStage "dev"
@@ -148,7 +185,6 @@ These groups can be any Entra ID groups - no special configuration needed.
 ## 🔄 How It Works
 
 ### Deployment Ring Flow
-
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Policy Created in Intune (not assigned to any group)       │
@@ -197,7 +233,6 @@ The script analyzes each policy and determines:
    - 🎉 **Complete**: Already deployed to all stages
 
 ### Example Output
-
 ```
 🔥 IntuneStack Policy Promotion Analysis v1.0.0
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -206,7 +241,7 @@ The script analyzes each policy and determines:
 ✓ Connected to Microsoft Graph
 
 📋 Analysis Parameters:
-   Policy ID:         12345678-1234-5678-9abc-def012345678
+   Policy ID:         ********-****-****-****-************
    Current Stage:     dev
    Success Threshold: 80%
    Auto Promote:      ✅ Enabled
@@ -233,22 +268,71 @@ The script analyzes each policy and determines:
 
 🚀 Auto-deployment enabled - deploying to test...
 🔍 Current assignments before deployment:
-   - Intune-Dev-Users (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)
+   - Intune-Dev-Users (********-****-****-****-************)
 
 ✅ Policy successfully deployed to test stage
 
 🔍 Verifying updated assignments...
 ✅ Policy now assigned to 2 group(s):
-   - Intune-Dev-Users (aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee)
-   - Intune-Test-Users (ffffffff-gggg-hhhh-iiii-jjjjjjjjjjjj)
+   - Intune-Dev-Users (********-****-****-****-************)
+   - Intune-Test-Users (********-****-****-****-************)
 
 ✅ Policy promotion analysis completed!
 ```
 
 ## 🧪 Testing
 
-### Running Tests Locally
+### ⚠️ Important: Integration Tests and Public Repositories
 
+**Do not run integration tests on the public IntuneStack repository.** Integration tests connect to your real Intune tenant and may expose tenant details in workflow logs, even with masking enabled.
+
+### Recommended Testing Approaches
+
+#### Option 1: Local Testing (Safest & Recommended)
+```powershell
+# Test policy promotion locally with your own tenant
+.\src\PolicyPromotion.ps1 -PolicyId "" -CurrentStage "dev"
+
+# Run with auto-promotion
+.\src\PolicyPromotion.ps1 -PolicyId "" -CurrentStage "dev" -AutoPromote
+```
+
+#### Option 2: Private Fork
+
+1. Fork this repository
+2. **Keep your fork private**
+3. Configure your Azure App Registration and GitHub secrets
+4. Run integration tests in your private fork safely
+
+#### Option 3: Test Tenant Only
+
+If you must run integration tests on a public repository:
+- Use a test/demo tenant with no production data
+- Create test policies specifically for validation
+- Accept that some details may appear in logs despite masking
+
+### What Runs Automatically (Safe for Public Repos)
+
+On push and pull requests, these tests run automatically and are **safe for public repositories**:
+
+- ✅ **Code quality checks** (PSScriptAnalyzer) - No tenant connection
+- ✅ **Unit tests** (Pester) - No tenant connection
+- ✅ **Mock/synthetic tests** - No tenant connection
+
+On manual workflow dispatch only:
+
+- ⚠️ **Integration tests** - Connects to real Intune tenant (use with caution)
+
+### Security Measures in Place
+
+When integration tests run on your fork:
+- 🔒 Tenant ID, Client ID, and Policy ID are masked in logs
+- 🔒 OIDC tokens are masked immediately
+- 🔒 No artifacts with tenant data are uploaded
+- 🔒 GUIDs in output are redacted where possible
+- ⚠️ Some tenant details may still appear in Graph API responses
+
+### Running Tests Locally
 ```powershell
 # Run all Pester tests
 Invoke-Pester -Path "./tests/PolicyPromotion.Tests.ps1"
@@ -260,13 +344,6 @@ $config.CodeCoverage.Enabled = $true
 $config.CodeCoverage.Path = "./src/PolicyPromotion.ps1"
 Invoke-Pester -Configuration $config
 ```
-
-### GitHub Actions Testing
-
-Tests run automatically on:
-- **Push to main/development**: Full test suite
-- **Pull requests**: Full test suite with code quality checks
-- **Manual workflow**: Policy promotion testing with live Graph API
 
 ### Test Coverage
 
@@ -280,7 +357,6 @@ Tests run automatically on:
 ### OIDC (GitHub Actions)
 
 Automatically used in CI/CD - no secrets stored in code:
-
 ```yaml
 - name: Request OIDC token
   id: oidc
@@ -292,7 +368,6 @@ Automatically used in CI/CD - no secrets stored in code:
 ### Interactive (Local Development)
 
 For testing locally, the script automatically falls back to interactive authentication:
-
 ```powershell
 # Interactive browser authentication
 .\src\PolicyPromotion.ps1 -PolicyId "" -CurrentStage "dev"
@@ -300,10 +375,9 @@ For testing locally, the script automatically falls back to interactive authenti
 
 ## 📊 Reports and Artifacts
 
-### Promotion Report
+### Promotion Report (Local Only)
 
 After each run, a JSON report is generated at `./output/reports/promotion-report.json`:
-
 ```json
 {
   "Timestamp": "2024-01-15 10:30:00 UTC",
@@ -326,17 +400,18 @@ After each run, a JSON report is generated at `./output/reports/promotion-report
 }
 ```
 
-### Log Files
+### Log Files (Local Only)
 
 Detailed logs are written to `./output/reports/promotion.log`:
-
 ```
-2024-01-15 10:30:00 - [Info] Policy ID: 12345678-1234-5678-9abc-def012345678, Stage: dev
+2024-01-15 10:30:00 - [Info] Policy ID: ********-****-****-****-************, Stage: dev
 2024-01-15 10:30:05 - [Success] Connected to Microsoft Graph
 2024-01-15 10:30:10 - [Info] Policy found: Skip User ESP (DeviceConfiguration)
 2024-01-15 10:30:12 - [Success] Policy ready for test stage
 2024-01-15 10:30:15 - [Success] Successfully promoted to test stage
 ```
+
+> **Note**: In GitHub Actions, these reports are generated but not uploaded as artifacts to protect sensitive tenant data. They are available in the workflow logs only.
 
 ## ⚙️ Configuration
 
@@ -351,7 +426,6 @@ Default success thresholds by stage:
 | Prod  | 80%               | 85-95%      |
 
 Customize per-run with `-ComplianceThreshold`:
-
 ```powershell
 # Require 90% success for production
 .\src\PolicyPromotion.ps1 -PolicyId "" -CurrentStage "test" -ComplianceThreshold 90 -AutoPromote
@@ -360,7 +434,6 @@ Customize per-run with `-ComplianceThreshold`:
 ### Deployment Ring Groups
 
 Configure custom group names using GitHub repository variables:
-
 ```bash
 # Default group names (if variables not set)
 INTUNESTACK_DEV_GROUP=Intune-Dev-Users
@@ -392,9 +465,17 @@ Contributions welcome! Please:
 - **[Intune Graph API](https://learn.microsoft.com/en-us/graph/api/resources/intune-graph-overview)** - API documentation
 - **[Pester](https://pester.dev/)** - PowerShell testing framework
 
-## 📄 License
+## ⚠️ Disclaimer & License
 
-GPL - See LICENSE file for details
+**USE AT YOUR OWN RISK**: This software is provided "as is" without warranty of any kind. The authors and contributors are not responsible for any damages or issues that may arise from using this software. Always:
+
+- Test in a non-production environment first
+- Review all code before running against your tenant
+- Understand the permissions you're granting
+- Monitor your deployments closely
+- Have a rollback plan
+
+**License**: This project is licensed under the GPL License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## 🙏 Acknowledgments
 

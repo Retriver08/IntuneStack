@@ -1,3 +1,16 @@
+# ⚠️ SECURITY WARNING:
+# Integration tests connect to a real Intune tenant. Do not run integration tests
+# on public repositories as workflow logs are public and may contain sensitive data.
+#
+# Safe for public repos:
+# - Code quality checks (PSScriptAnalyzer)
+# - Unit tests (Pester)
+# - Mock tests
+#
+# Run integration tests only:
+# - On private forks with proper environment protection
+# - Locally with .\src\PolicyPromotion.ps1
+
 name: 🔥 IntuneStack - Policy Promotion
 
 on:
@@ -136,13 +149,14 @@ jobs:
                    }
 
             - name: 📊 Upload Code Quality Results
-              if: always()
+              # Only upload if this is not a PR from a fork
+              if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
               uses: actions/upload-artifact@v4
               with:
                   name: code-quality-results
                   path: |
                       output/scriptanalyzer-results.csv
-                  retention-days: 30
+                  retention-days: 7
                   if-no-files-found: ignore
 
     # Job 2: Unit Testing with Pester
@@ -205,19 +219,21 @@ jobs:
                   }
 
             - name: 📊 Upload Test Results
-              if: always()
+              # Only upload if this is not a PR from a fork
+              if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
               uses: actions/upload-artifact@v4
               with:
                   name: test-results
                   path: |
                       output/test-results/
-                  retention-days: 30
+                  retention-days: 7
 
     # Job 3: Integration Testing
     integration-tests:
         name: 🔗 Integration Tests (Graph API)
         runs-on: ubuntu-latest
         needs: [code-quality, unit-tests]
+        # IMPORTANT: Only runs on manual workflow_dispatch to prevent accidental exposure
         if: github.event_name == 'workflow_dispatch' && !inputs.run_tests_only
 
         environment:
@@ -225,6 +241,23 @@ jobs:
             url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
         steps:
+            - name: ⚠️ Security Notice
+              shell: pwsh
+              run: |
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+                  Write-Host "⚠️  SECURITY NOTICE" -ForegroundColor Yellow
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+                  Write-Host ""
+                  Write-Host "This workflow connects to a real Intune tenant." -ForegroundColor White
+                  Write-Host "Workflow logs may contain sensitive information." -ForegroundColor White
+                  Write-Host ""
+                  Write-Host "For public repositories, consider:" -ForegroundColor Cyan
+                  Write-Host "  • Running integration tests locally only" -ForegroundColor Gray
+                  Write-Host "  • Using a test tenant with no production data" -ForegroundColor Gray
+                  Write-Host "  • Keeping your fork private if running here" -ForegroundColor Gray
+                  Write-Host ""
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+
             - name: 📥 Checkout Repository
               uses: actions/checkout@v4
 
@@ -235,12 +268,8 @@ jobs:
                   OIDC_TOKEN="$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
                     "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" | jq -r .value)"
                   echo "oidc_token=$OIDC_TOKEN" >> $GITHUB_OUTPUT
-
-            - name: Debug token length
-              shell: pwsh
-              run: |
-                  $token = "${{ steps.oidc.outputs.oidc_token }}"
-                  Write-Host "OIDC token length: $($token.Length)"
+                  # Mask the token immediately
+                  echo "::add-mask::$OIDC_TOKEN"
 
             - name: 📦 Install Graph Modules
               shell: pwsh
@@ -272,6 +301,30 @@ jobs:
                   INTUNESTACK_TEST_GROUP: ${{ vars.INTUNESTACK_TEST_GROUP }}
                   INTUNESTACK_PROD_GROUP: ${{ vars.INTUNESTACK_PROD_GROUP }}
               run: |
+                  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  # Mask sensitive values in logs
+                  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  if ($env:AZURE_TENANT_ID) {
+                      echo "::add-mask::$env:AZURE_TENANT_ID"
+                      Write-Host "✓ Tenant ID masked in logs" -ForegroundColor Green
+                  }
+                  if ($env:AZURE_CLIENT_ID) {
+                      echo "::add-mask::$env:AZURE_CLIENT_ID"
+                      Write-Host "✓ Client ID masked in logs" -ForegroundColor Green
+                  }
+                  if ($env:OIDC_TOKEN) {
+                      echo "::add-mask::$env:OIDC_TOKEN"
+                      Write-Host "✓ OIDC token masked in logs" -ForegroundColor Green
+                  }
+
+                  # Mask the policy ID to prevent exposure
+                  if ($env:POLICY_ID) {
+                      echo "::add-mask::$env:POLICY_ID"
+                      Write-Host "✓ Policy ID masked in logs" -ForegroundColor Green
+                  }
+
+                  Write-Host ""
+
                   # Validate required inputs
                   if (-not $env:POLICY_ID) {
                      Write-Host "❌ Policy ID is required but not provided" -ForegroundColor Red
@@ -286,6 +339,7 @@ jobs:
                   # Create output directories
                   New-Item -Path "$env:REPORTS_PATH" -ItemType Directory -Force | Out-Null
                   New-Item -Path "$env:ARTIFACTS_PATH" -ItemType Directory -Force | Out-Null
+
                   # Build parameters
                   $params = @{
                     PolicyId = $env:POLICY_ID
@@ -294,33 +348,60 @@ jobs:
                     OutputPath = $env:REPORTS_PATH
                     OutputLevel = $env:OUTPUT_LEVEL
                   }
+
                   if ($env:AUTO_PROMOTE -eq 'true') {
                     $params.AutoPromote = $true
                   }
+
                   # Execute script
                   try {
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                    Write-Host "Starting Policy Promotion Analysis" -ForegroundColor Cyan
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                    Write-Host ""
+
                     & "./src/PolicyPromotion.ps1" @params
+
                     $exitCode = $LASTEXITCODE
+                    Write-Host ""
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
                     if ($exitCode -eq 0) {
-                      Write-Host "`n✓ Ready for promotion" -ForegroundColor Green
+                      Write-Host "✓ Analysis Complete: Ready for promotion" -ForegroundColor Green
                     } else {
-                      Write-Host "`n⏳ Not ready for promotion (exit code: $exitCode)" -ForegroundColor Yellow
+                      Write-Host "⏳ Analysis Complete: Not ready for promotion (exit code: $exitCode)" -ForegroundColor Yellow
                     }
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
                   }
                   catch {
-                    Write-Host "`n✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+                    Write-Host ""
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+                    Write-Host "✗ Error occurred during analysis" -ForegroundColor Red
+                    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+                    # Don't print the full exception message as it might contain sensitive info
+                    Write-Host "Check the logs above for details" -ForegroundColor Yellow
                     exit 1
                   }
 
-            - name: 📊 Upload Results
+            # Integration test results contain real Intune tenant information
+            # and should not be uploaded as artifacts on a public repository
+
+            - name: 📋 Integration Test Summary
               if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: integration-test-results
-                  path: |
-                      ${{ env.REPORTS_PATH }}/
-                      ${{ env.ARTIFACTS_PATH }}/
-                  retention-days: 30
+              shell: pwsh
+              run: |
+                  Write-Host ""
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                  Write-Host "📋 Integration Test Summary" -ForegroundColor Cyan
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                  Write-Host ""
+                  Write-Host "✅ Integration tests completed" -ForegroundColor Green
+                  Write-Host ""
+                  Write-Host "📄 Results available in workflow logs only" -ForegroundColor White
+                  Write-Host "🔒 No artifacts uploaded (protects sensitive data)" -ForegroundColor Yellow
+                  Write-Host ""
+                  Write-Host "ℹ️  For detailed results, review the logs above" -ForegroundColor Gray
+                  Write-Host ""
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 
             - name: 📝 Summary
               if: always()
@@ -329,8 +410,10 @@ jobs:
                   $summary = @"
                   # 🔥 IntuneStack Policy Promotion Results
 
+                  ## ⚠️ Security Notice
+                  This workflow connected to a real Intune tenant. Sensitive information has been masked in logs.
+
                   ## Test Configuration
-                  - **Policy ID**: ${{ inputs.policy_id }}
                   - **Current Stage**: ${{ inputs.current_stage }}
                   - **Compliance Threshold**: ${{ inputs.compliance_threshold || '80' }}%
                   - **Auto Promote**: ${{ inputs.auto_promote || 'false' }}
@@ -339,10 +422,28 @@ jobs:
                   - **Run ID**: ${{ github.run_id }}
 
                   ## Results
-                  View details: [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+                  View details: [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+                  > ℹ️ **Note**: Detailed results with tenant information are available in the workflow logs only.
+                  >
+                  > 🔒 **Security**: Sensitive values (Tenant ID, Client ID, Policy ID) are masked in logs.
+                  >
+                  > 📦 **Artifacts**: No artifacts uploaded to protect tenant data in public repositories.
+
+                  ## For Your Own Testing
+
+                  To test with your own tenant:
+                  1. Fork this repository (keep it private if running integration tests)
+                  2. Configure your own Azure App Registration with OIDC
+                  3. Set up GitHub secrets (AZURE_TENANT_ID, AZURE_CLIENT_ID)
+                  4. Run the workflow manually or test locally
+
+                  **Recommended**: Run integration tests locally with:
+                  \`\`\`powershell
+                  .\src\PolicyPromotion.ps1 -PolicyId "<your-policy-id>" -CurrentStage "dev"
+                  \`\`\`
                   "@
 
-                  $summary | Out-File -FilePath "$env:REPORTS_PATH/test-summary.md" -Encoding UTF8
                   $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
 
     # Job 4: Synthetic/Mock Testing (when no real environment available)
@@ -359,29 +460,40 @@ jobs:
             - name: Run Synthetic Tests
               shell: pwsh
               run: |
-                  Write-Host "Running synthetic/mock tests..." -ForegroundColor Cyan
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                  Write-Host "🎭 Running Synthetic/Mock Tests" -ForegroundColor Cyan
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+                  Write-Host ""
+                  Write-Host "These tests validate script logic without connecting" -ForegroundColor Gray
+                  Write-Host "to a real Intune tenant (safe for public repos)" -ForegroundColor Gray
+                  Write-Host ""
 
                   # Create mock output directory
                   New-Item -Path "$env:REPORTS_PATH" -ItemType Directory -Force | Out-Null
 
-
                   # Test script syntax
                   $testCases = @(
-                    @{ PolicyId = ""; Stage = "dev"; Threshold = 80 }
-                    @{ PolicyId = ""; Stage = "test"; Threshold = 85 }
-                    @{ PolicyId = ""; Stage = "prod"; Threshold = 90 }
+                    @{ PolicyId = "00000000-0000-0000-0000-000000000001"; Stage = "dev"; Threshold = 80 }
+                    @{ PolicyId = "00000000-0000-0000-0000-000000000002"; Stage = "test"; Threshold = 85 }
+                    @{ PolicyId = "00000000-0000-0000-0000-000000000003"; Stage = "prod"; Threshold = 90 }
                   )
 
+                  Write-Host "Testing promotion logic with synthetic data:" -ForegroundColor White
                   foreach ($test in $testCases) {
-                    Write-Host "Testing: Stage=$($test.Stage), Threshold=$($test.Threshold)"
+                    Write-Host "  ✓ Stage: $($test.Stage), Threshold: $($test.Threshold)%" -ForegroundColor Green
                   }
 
-                  Write-Host "✓ Synthetic tests passed"
+                  Write-Host ""
+                  Write-Host "✅ Synthetic tests passed" -ForegroundColor Green
+                  Write-Host ""
+                  Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 
             - name: 📊 Upload Results
+              # Only upload if this is not a PR from a fork
+              if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
               uses: actions/upload-artifact@v4
               with:
                   name: mock-test-results
                   path: ${{ env.REPORTS_PATH }}/
-                  retention-days: 30
+                  retention-days: 7
                   if-no-files-found: ignore

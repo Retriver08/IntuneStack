@@ -1,0 +1,30 @@
+extends: default
+
+rules:
+  # Increase line length limit
+  line-length:
+    max: 120
+    level: warning
+
+  # Allow document start/end
+  document-start:
+    present: false
+
+  # Allow empty lines
+  empty-lines:
+    max: 2
+    max-start: 1
+    max-end: 1
+
+  # Indentation rules
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Comments
+  comments:
+    min-spaces-from-content: 1
+
+  # Allow long lines in URLs
+  comments-indentation: disable

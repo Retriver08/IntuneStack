@@ -1,0 +1,113 @@
+# Build outputs
+generated/
+reports/
+*.log
+
+# PowerShell modules (installed locally)
+Modules/
+
+# Test results
+TestResults.xml
+CodeCoverage.xml
+coverage.xml
+*.trx
+
+# VS Code settings (if you want to ignore personal settings)
+.vscode/launch.json
+
+# Environment files
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Azure CLI
+.azure/
+
+# Docker
+.docker/
+
+# Pre-commit cache
+.pre-commit/
+
+# Node modules (if you add any JS tooling)
+node_modules/
+
+# Python (if you add any Python tooling)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+
+# IntuneStack specific
+*.intunewin
+secrets.yaml
+local-config.yaml
+
+# OpenIntuneBaselines
+templates/CompliancePolicies/*
+templates/DeviceConfiguration/*
+templates/DriverUpdateProfiles/*
+templates/Scripts/*
+templates/SettingsCatalog/*
+templates/UpdatePolicies/*
+
+
+# PowerShell
+*.ps1xml
+*.psd1
+.vscode/settings.json.user
+
+# Azure
+.azure/
+*.publish
+
+# Output directories
+output/
+reports/
+logs/
+temp/
+
+# Environment files
+.env
+.env.local
+*.local.yaml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+TestResults/
+coverage.xml
+*.trx
+scratch.ps1

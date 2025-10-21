@@ -1,0 +1,114 @@
+name: Pull Request Validation
+
+on:
+    pull_request:
+        branches: [main, develop]
+
+permissions:
+    contents: read
+    checks: write
+    pull-requests: write
+
+jobs:
+    pr-validation:
+        name: PR Quality Gate
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout PR
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup PowerShell
+              shell: pwsh
+              run: |
+                  Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+                  Install-Module -Name Pester -Force -Scope CurrentUser
+
+            - name: Get Changed PowerShell Files
+              id: changed-files
+              uses: tj-actions/changed-files@v40
+              with:
+                  files: |
+                      **/*.ps1
+                      **/*.psm1
+                      **/*.psd1
+
+            - name: Analyze Changed PowerShell Files
+              if: steps.changed-files.outputs.any_changed == 'true'
+              shell: pwsh
+              run: |
+                  Write-Host "🔍 Analyzing changed PowerShell files..." -ForegroundColor Cyan
+
+                  $ChangedFiles = @(
+                    ${{ steps.changed-files.outputs.all_changed_files }}
+                  )
+
+                  $ErrorCount = 0
+                  $WarningCount = 0
+
+                  foreach ($File in $ChangedFiles) {
+                    if (Test-Path $File) {
+                      Write-Host "Analyzing: $File" -ForegroundColor Gray
+
+                      $Results = Invoke-ScriptAnalyzer -Path $File -Settings "./PSScriptAnalyzerSettings.psd1"
+
+                      if ($Results) {
+                        $ErrorCount += ($Results | Where-Object Severity -eq 'Error').Count
+                        $WarningCount += ($Results | Where-Object Severity -eq 'Warning').Count
+
+                        foreach ($Result in $Results) {
+                          $Level = switch ($Result.Severity) {
+                            'Error' { 'error' }
+                            'Warning' { 'warning' }
+                            'Information' { 'notice' }
+                          }
+
+                          $Message = "$($Result.RuleName): $($Result.Message)"
+                          $Line = $Result.Line
+                          $Column = $Result.Column
+
+                          Write-Output "::$Level file=$File,line=$Line,col=$Column::$Message"
+                        }
+                      }
+                    }
+                  }
+
+                  Write-Host "`n📊 PR Analysis Summary:" -ForegroundColor Cyan
+                  Write-Host "   Files Changed: $($ChangedFiles.Count)" -ForegroundColor Gray
+                  Write-Host "   Errors: $ErrorCount" -ForegroundColor $(if($ErrorCount -gt 0){'Red'}else{'Green'})
+                  Write-Host "   Warnings: $WarningCount" -ForegroundColor $(if($WarningCount -gt 0){'Yellow'}else{'Green'})
+
+                  if ($ErrorCount -gt 0) {
+                    Write-Host "❌ PR contains PSScriptAnalyzer errors. Please fix before merging." -ForegroundColor Red
+                    exit 1
+                  }
+
+                  if ($WarningCount -gt 0) {
+                    Write-Host "⚠️ PR contains PSScriptAnalyzer warnings. Consider addressing these issues." -ForegroundColor Yellow
+                  }
+
+                  Write-Host "✅ PR validation completed!" -ForegroundColor Green
+
+            - name: Comment PR with Results
+              if: failure() && steps.changed-files.outputs.any_changed == 'true'
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      github.rest.issues.createComment({
+                        issue_number: context.issue.number,
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: `❌ **Code Quality Check Failed**
+
+                        This PR contains PowerShell code that doesn't meet our quality standards. Please review the PSScriptAnalyzer results above and fix the identified issues.
+
+                        **Common fixes:**
+                        - Use approved PowerShell verbs
+                        - Add proper parameter validation
+                        - Fix formatting issues
+                        - Add missing documentation
+
+                        Run \`./scripts/Invoke-CodeQuality.ps1 -Fix\` locally to automatically fix some issues.`
+                      })

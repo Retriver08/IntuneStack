@@ -550,6 +550,11 @@ function Get-DeviceConfigurationPolicyAssignment() {
                     try {
 
                         $GroupDetails = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/groups/$($GroupId)" -OutputType PSObject
+
+                        if ($env:GITHUB_ACTIONS -and $GroupId) {
+                            Write-Output "::add-mask::$GroupId"
+                        }
+
                         $AssignedGroups[$GroupId] = [PSCustomObject]@{
                             Id             = $GroupId
                             Name           = $GroupDetails.displayName
@@ -594,6 +599,11 @@ function Get-DeviceConfigurationPolicyAssignment() {
 
                             try {
                                 $GroupDetails = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/groups/$($GroupId)" -OutputType PSObject
+
+                                if ($env:GITHUB_ACTIONS -and $GroupId) {
+                                    Write-Output "::add-mask::$GroupId"
+                                }
+
                                 $AssignedGroups[$GroupId] = [PSCustomObject]@{
                                     Id             = $GroupId
                                     Name           = $GroupDetails.displayName

@@ -423,25 +423,6 @@ jobs:
 
                   ## Results
                   View details: [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-                  > ℹ️ **Note**: Detailed results with tenant information are available in the workflow logs only.
-                  >
-                  > 🔒 **Security**: Sensitive values (Tenant ID, Client ID, Policy ID) are masked in logs.
-                  >
-                  > 📦 **Artifacts**: No artifacts uploaded to protect tenant data in public repositories.
-
-                  ## For Your Own Testing
-
-                  To test with your own tenant:
-                  1. Fork this repository (keep it private if running integration tests)
-                  2. Configure your own Azure App Registration with OIDC
-                  3. Set up GitHub secrets (AZURE_TENANT_ID, AZURE_CLIENT_ID)
-                  4. Run the workflow manually or test locally
-
-                  **Recommended**: Run integration tests locally with:
-                  \`\`\`powershell
-                  .\src\PolicyPromotion.ps1 -PolicyId "<your-policy-id>" -CurrentStage "dev"
-                  \`\`\`
                   "@
 
                   $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding UTF8

